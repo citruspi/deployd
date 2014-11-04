@@ -1,12 +1,15 @@
 package main
 
 import (
+	"archive/zip"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v2"
 )
@@ -45,21 +48,6 @@ func main() {
 	}
 
 	for _, project := range config.Static {
-		/*
-			path = fmt.Sprintf("/tmp/%v-%v", project.Name, project.Branch)
-			dir, err := os.Stat(path)
-
-			if path.IsDir() {
-				os.Remove(path)
-			}
-
-			err = os.MkDir(path, 0700)
-
-			if err != nil {
-				log.Fatal(err)
-			}
-		*/
-
 		archivePath := fmt.Sprintf("/tmp/%v-%v.zip", project.Name, project.Branch)
 
 		if _, err := os.Stat(archivePath); err == nil {
@@ -101,5 +89,68 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		unarchivedPath := fmt.Sprintf("/tmp/%v-%v", project.Name, project.Branch)
+
+		if _, err := os.Stat(unarchivedPath); err == nil {
+			err := os.Remove(unarchivedPath)
+
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+
+		err = unzip(archivePath, unarchivedPath)
+
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
+}
+
+// unzip function by http://stackoverflow.com/users/1129149/swtdrgn
+// http://stackoverflow.com/questions/20357223/easy-way-to-unzip-file-with-golang/24430720#24430720
+
+func unzip(src, dest string) error {
+	r, err := zip.OpenReader(src)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	for _, f := range r.File {
+		rc, err := f.Open()
+		if err != nil {
+			return err
+		}
+		defer rc.Close()
+
+		fpath := filepath.Join(dest, f.Name)
+		if f.FileInfo().IsDir() {
+			os.MkdirAll(fpath, f.Mode())
+		} else {
+			var fdir string
+			if lastIndex := strings.LastIndex(fpath, string(os.PathSeparator)); lastIndex > -1 {
+				fdir = fpath[:lastIndex]
+			}
+
+			err = os.MkdirAll(fdir, f.Mode())
+			if err != nil {
+				log.Fatal(err)
+				return err
+			}
+			f, err := os.OpenFile(
+				fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+			if err != nil {
+				return err
+			}
+			defer f.Close()
+
+			_, err = io.Copy(f, rc)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
