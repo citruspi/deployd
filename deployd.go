@@ -50,13 +50,7 @@ func main() {
 	for _, project := range config.Static {
 		archivePath := fmt.Sprintf("/tmp/%v-%v.zip", project.Name, project.Branch)
 
-		if _, err := os.Stat(archivePath); err == nil {
-			err := os.Remove(archivePath)
-
-			if err != nil {
-				log.Fatal(err)
-			}
-		}
+		err = os.RemoveAll(archivePath)
 
 		if err != nil {
 			log.Fatal(err)
@@ -92,12 +86,10 @@ func main() {
 
 		unarchivedPath := fmt.Sprintf("/tmp/%v-%v", project.Name, project.Branch)
 
-		if _, err := os.Stat(unarchivedPath); err == nil {
-			err := os.Remove(unarchivedPath)
+		err = os.RemoveAll(unarchivedPath)
 
-			if err != nil {
-				log.Fatal(err)
-			}
+		if err != nil {
+			log.Fatal(err)
 		}
 
 		err = unzip(archivePath, unarchivedPath)
@@ -113,17 +105,13 @@ func main() {
 		domainPath := fmt.Sprintf("srv/%v", project.Domain)
 		projectPath := fmt.Sprintf("srv/%v/%v", project.Domain, project.Subdomain)
 
-		if _, err := os.Stat(domainPath); err == nil {
-			if _, err := os.Stat(projectPath); err == nil {
-				err := os.Remove(projectPath)
+		err = os.RemoveAll(projectPath)
 
-				if err != nil {
-					log.Fatal(err)
-				}
-			}
-		} else {
-			os.Mkdir(domainPath, 0700)
+		if err != nil {
+			log.Fatal(err)
 		}
+
+		os.Mkdir(domainPath, 0700)
 
 		err = os.Rename(unarchivedPath, projectPath)
 
