@@ -105,6 +105,31 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		if project.GitHub {
+			unarchivedPath = fmt.Sprintf("%v/%v-%v", unarchivedPath, project.Repository, project.Branch)
+		}
+
+		domainPath := fmt.Sprintf("srv/%v", project.Domain)
+		projectPath := fmt.Sprintf("srv/%v/%v", project.Domain, project.Subdomain)
+
+		if _, err := os.Stat(domainPath); err == nil {
+			if _, err := os.Stat(projectPath); err == nil {
+				err := os.Remove(projectPath)
+
+				if err != nil {
+					log.Fatal(err)
+				}
+			}
+		} else {
+			os.Mkdir(domainPath, 0700)
+		}
+
+		err = os.Rename(unarchivedPath, projectPath)
+
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
