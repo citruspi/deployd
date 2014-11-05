@@ -21,6 +21,12 @@ var (
 
 type Config struct {
 	Static []StaticProject
+	Paths  PathConfig
+}
+
+type PathConfig struct {
+	Deployd string
+	Static  string
 }
 
 type StaticProject struct {
@@ -56,8 +62,12 @@ func main() {
 		log.Fatal(err)
 	}
 
+	if _, err := os.Stat(config.Paths.Deployd); os.IsNotExist(err) {
+		os.MkdirAll(config.Paths.Deployd, 0700)
+	}
+
 	for _, project := range config.Static {
-		archivePath := fmt.Sprintf("/tmp/%v-%v.zip", project.Name, project.Branch)
+		archivePath := fmt.Sprintf("%v/%v-%v.zip", config.Paths.Deployd, project.Name, project.Branch)
 
 		err = os.RemoveAll(archivePath)
 
@@ -93,7 +103,7 @@ func main() {
 			log.Fatal(err)
 		}
 
-		unarchivedPath := fmt.Sprintf("/tmp/%v-%v", project.Name, project.Branch)
+		unarchivedPath := fmt.Sprintf("%v/%v-%v", config.Paths.Deployd, project.Name, project.Branch)
 
 		err = os.RemoveAll(unarchivedPath)
 
