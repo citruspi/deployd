@@ -66,6 +66,10 @@ func main() {
 		os.MkdirAll(config.Paths.Deployd, 0700)
 	}
 
+	if _, err := os.Stat(config.Paths.Static); os.IsNotExist(err) {
+		os.MkdirAll(config.Paths.Static, 0700)
+	}
+
 	for _, project := range config.Static {
 		archivePath := fmt.Sprintf("%v/%v-%v.zip", config.Paths.Deployd, project.Name, project.Branch)
 
@@ -121,8 +125,8 @@ func main() {
 			unarchivedPath = fmt.Sprintf("%v/%v-%v", unarchivedPath, project.Repository, project.Branch)
 		}
 
-		domainPath := fmt.Sprintf("srv/%v", project.Domain)
-		projectPath := fmt.Sprintf("srv/%v/%v", project.Domain, project.Subdomain)
+		domainPath := fmt.Sprintf("%v/%v", config.Paths.Static, project.Domain)
+		projectPath := fmt.Sprintf("%v/%v/%v", config.Paths.Static, project.Domain, project.Subdomain)
 
 		err = os.RemoveAll(projectPath)
 
