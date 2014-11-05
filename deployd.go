@@ -137,6 +137,12 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		err = os.RemoveAll(archivePath)
+
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
