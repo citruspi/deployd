@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/zip"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -34,7 +35,15 @@ type StaticProject struct {
 }
 
 func main() {
-	data, err := ioutil.ReadFile("deployd.conf")
+	configPath := flag.String("config", "/etc/deployd.conf", "Path to the config file")
+
+	flag.Parse()
+
+	if _, err = os.Stat(*configPath); os.IsNotExist(err) {
+		log.Fatal(err)
+	}
+
+	data, err := ioutil.ReadFile(*configPath)
 
 	if err != nil {
 		log.Fatal(err)
