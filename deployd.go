@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/zip"
+	"crypto/md5"
 	"flag"
 	"fmt"
 	"io"
@@ -27,6 +28,7 @@ type Config struct {
 type PathConfig struct {
 	Deployd string
 	Static  string
+	Cache   string
 }
 
 type StaticProject struct {
@@ -38,6 +40,12 @@ type StaticProject struct {
 	Bucket     string
 	Owner      string
 	Repository string
+}
+
+type CacheRecord struct {
+	Domain    string
+	Subdomain string
+	Checksum  string
 }
 
 func main() {
@@ -62,6 +70,29 @@ func main() {
 		log.Fatal(err)
 	}
 
+	var cache []CacheRecord
+
+	if _, err = os.Stat(config.Paths.Cache); os.IsNotExist(err) {
+		cacheFile, err := os.Create(config.Paths.Cache)
+		cacheFile.Close()
+
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		cacheData, err := ioutil.ReadFile(config.Paths.Cache)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		err = yaml.Unmarshal(cacheData, &cache)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
 	if _, err := os.Stat(config.Paths.Deployd); os.IsNotExist(err) {
 		os.MkdirAll(config.Paths.Deployd, 0700)
 	}
@@ -71,6 +102,20 @@ func main() {
 	}
 
 	for _, project := range config.Static {
+		var record CacheRecord
+
+		for _, r := range cache {
+			if r.Domain == project.Domain && r.Subdomain == project.Subdomain {
+				record = r
+				break
+			}
+		}
+
+		if record.Domain == "" {
+			record.Domain = project.Domain
+			record.Subdomain = project.Subdomain
+		}
+
 		archivePath := fmt.Sprintf("%v/%v-%v.zip", config.Paths.Deployd, project.Name, project.Branch)
 
 		err = os.RemoveAll(archivePath)
@@ -106,6 +151,23 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		archiveData, err := ioutil.ReadFile(archivePath)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		rawChecksum := md5.Sum(archiveData)
+		checksum := fmt.Sprintf("%x", rawChecksum)
+
+		if checksum == record.Checksum {
+			continue
+		}
+		fmt.Println("Replacing")
+		record.Checksum = checksum
+
+		cache = append(cache, record)
 
 		unarchivedPath := fmt.Sprintf("%v/%v-%v", config.Paths.Deployd, project.Name, project.Branch)
 
@@ -147,6 +209,18 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+	}
+
+	cacheData, err := yaml.Marshal(&cache)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = ioutil.WriteFile(config.Paths.Cache, cacheData, 0700)
+
+	if err != nil {
+		log.Fatal(err)
 	}
 }
 
