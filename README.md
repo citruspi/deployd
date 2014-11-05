@@ -23,3 +23,28 @@ The continuous integration server (Jenkins running on 64-bit CentOS 7) builds a 
     $ wget https://s3.amazonaws.com/deployd/master-latest.zip
     $ unzip master-latest.zip
     $ mv deployd /usr/local/bin/.   
+
+## Configuration
+
+deployd requires a configuration file to run. It'll look for one at `/etc/deployd.conf` but you can specify one with `--config`. The configuration file is YAML formatted.
+
+### Sample Configuration File
+(For reference when reading the usage).
+```yaml
+paths:
+    static: /srv
+    deployd: /srv/.deployd
+static:
+    - name: RHoK The Hood
+      domain: rhokthehood.com
+      subdomain: www
+      branch: master
+      bucket: rhokthehoodbuilds
+    - name: Mihir Singh
+      domain: mihirsingh.com
+      subdomain: www
+      branch: master
+      github: True
+      owner: citruspi
+      repository: mihirsingh.com
+```
