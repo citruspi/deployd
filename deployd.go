@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v2"
@@ -24,6 +25,7 @@ var (
 type Config struct {
 	Cache  string
 	Static StaticConfig
+	Lock   string
 }
 
 type StaticConfig struct {
@@ -68,6 +70,31 @@ func main() {
 
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	if config.Lock == "" {
+		config.Lock = "/var/run"
+	}
+
+	lockPath := fmt.Sprintf("%v/deployd.pid", config.Lock)
+
+	if _, err = os.Stat(lockPath); err == nil {
+		log.Fatal("Another instance is already running.")
+	} else {
+		lockFile, err := os.Create(lockPath)
+		lockFile.Close()
+
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		pid := os.Getpid()
+
+		err = ioutil.WriteFile(lockPath, []byte(strconv.Itoa(pid)), 0700)
+
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	if config.Cache == "" {
