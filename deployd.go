@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v2"
 )
@@ -45,9 +46,10 @@ type StaticProject struct {
 }
 
 type CacheRecord struct {
-	Domain    string
-	Subdomain string
-	Checksum  string
+	Domain       string
+	Subdomain    string
+	Checksum     string
+	LastDeployed time.Time
 }
 
 func main() {
@@ -217,6 +219,7 @@ func main() {
 		}
 
 		record.Checksum = checksum
+		record.LastDeployed = time.Now()
 
 		cache = append(cache, record)
 
