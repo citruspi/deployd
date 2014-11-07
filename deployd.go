@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strings"
 
@@ -21,14 +22,13 @@ var (
 )
 
 type Config struct {
-	Static []StaticProject
-	Paths  PathConfig
+	Cache  string
+	Static StaticConfig
 }
 
-type PathConfig struct {
-	Deployd string
-	Static  string
-	Cache   string
+type StaticConfig struct {
+	Path     string
+	Projects []StaticProject
 }
 
 type StaticProject struct {
@@ -70,38 +70,52 @@ func main() {
 		log.Fatal(err)
 	}
 
+	if config.Cache == "" {
+		usr, _ := user.Current()
+		config.Cache = usr.HomeDir
+	}
+
+	if len(config.Static.Projects) > 0 {
+		if config.Static.Path == "" {
+			config.Static.Path = "/srv"
+		}
+	}
+
 	var cache []CacheRecord
 
-	if _, err = os.Stat(config.Paths.Cache); os.IsNotExist(err) {
-		cacheFile, err := os.Create(config.Paths.Cache)
+	cachePath := fmt.Sprintf("%v/.deployd.cache", config.Cache)
+
+	if _, err = os.Stat(config.Cache); os.IsNotExist(err) {
+		err = os.MkdirAll(config.Cache, 0700)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	if _, err = os.Stat(cachePath); os.IsNotExist(err) {
+		cacheFile, err := os.Create(cachePath)
 		cacheFile.Close()
 
 		if err != nil {
 			log.Fatal(err)
 		}
-	} else {
-		cacheData, err := ioutil.ReadFile(config.Paths.Cache)
-
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		err = yaml.Unmarshal(cacheData, &cache)
-
-		if err != nil {
-			log.Fatal(err)
-		}
 	}
 
-	if _, err := os.Stat(config.Paths.Deployd); os.IsNotExist(err) {
-		os.MkdirAll(config.Paths.Deployd, 0700)
+	cacheData, err := ioutil.ReadFile(cachePath)
+
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	if _, err := os.Stat(config.Paths.Static); os.IsNotExist(err) {
-		os.MkdirAll(config.Paths.Static, 0700)
+	err = yaml.Unmarshal(cacheData, &cache)
+
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	for _, project := range config.Static {
+	for _, project := range config.Static.Projects {
+		var processingPath string
 		var record CacheRecord
 
 		for _, r := range cache {
@@ -116,7 +130,17 @@ func main() {
 			record.Subdomain = project.Subdomain
 		}
 
-		archivePath := fmt.Sprintf("%v/%v-%v.zip", config.Paths.Deployd, project.Name, project.Branch)
+		processingPath = fmt.Sprintf("%v/.deployd.processing", config.Static.Path)
+
+		if _, err = os.Stat(processingPath); os.IsNotExist(err) {
+			err = os.MkdirAll(processingPath, 0700)
+
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+
+		archivePath := fmt.Sprintf("%v/%v-%v.zip", processingPath, project.Name, project.Branch)
 
 		err = os.RemoveAll(archivePath)
 
@@ -164,12 +188,12 @@ func main() {
 		if checksum == record.Checksum {
 			continue
 		}
-		fmt.Println("Replacing")
+
 		record.Checksum = checksum
 
 		cache = append(cache, record)
 
-		unarchivedPath := fmt.Sprintf("%v/%v-%v", config.Paths.Deployd, project.Name, project.Branch)
+		unarchivedPath := fmt.Sprintf("%v/%v-%v", processingPath, project.Name, project.Branch)
 
 		err = os.RemoveAll(unarchivedPath)
 
@@ -187,8 +211,8 @@ func main() {
 			unarchivedPath = fmt.Sprintf("%v/%v-%v", unarchivedPath, project.Repository, project.Branch)
 		}
 
-		domainPath := fmt.Sprintf("%v/%v", config.Paths.Static, project.Domain)
-		projectPath := fmt.Sprintf("%v/%v/%v", config.Paths.Static, project.Domain, project.Subdomain)
+		domainPath := fmt.Sprintf("%v/%v", config.Static.Path, project.Domain)
+		projectPath := fmt.Sprintf("%v/%v/%v", config.Static.Path, project.Domain, project.Subdomain)
 
 		err = os.RemoveAll(projectPath)
 
@@ -209,19 +233,26 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		err = os.RemoveAll(processingPath)
+
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
-	cacheData, err := yaml.Marshal(&cache)
+	cacheData, err = yaml.Marshal(&cache)
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	err = ioutil.WriteFile(config.Paths.Cache, cacheData, 0700)
+	err = ioutil.WriteFile(cachePath, cacheData, 0700)
 
 	if err != nil {
 		log.Fatal(err)
 	}
+
 }
 
 // unzip function by http://stackoverflow.com/users/1129149/swtdrgn
