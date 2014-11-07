@@ -280,6 +280,11 @@ func main() {
 		log.Fatal(err)
 	}
 
+	err = os.RemoveAll(lockPath)
+
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 // unzip function by http://stackoverflow.com/users/1129149/swtdrgn
