@@ -2,7 +2,7 @@
 
 deployd is a program I (plan to) use for deploying projects to different servers. It currently supports static websites and will support backend services written in Python and Go in the future.
 
-deployd is opinionated - I will be using it for my projects on my servers, so it's designed to work with them.
+deployd is opinionated - I will be using it for my projects on my servers, so it's designed to work with my workflow and configuration.
 
 ## Configuration
 
