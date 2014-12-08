@@ -3,18 +3,18 @@ package main
 import (
 	"archive/zip"
 	"crypto/md5"
-	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
-	"os/user"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/citruspi/deployd/configuration"
 
 	"gopkg.in/yaml.v2"
 )
@@ -22,28 +22,6 @@ import (
 var (
 	err error
 )
-
-type Config struct {
-	Cache  string
-	Static StaticConfig
-	Lock   string
-}
-
-type StaticConfig struct {
-	Path     string
-	Projects []StaticProject
-}
-
-type StaticProject struct {
-	Name       string
-	Branch     string
-	Domain     string
-	Subdomain  string
-	GitHub     bool
-	Bucket     string
-	Owner      string
-	Repository string
-}
 
 type CacheRecord struct {
 	Domain       string
@@ -53,29 +31,11 @@ type CacheRecord struct {
 }
 
 func main() {
-	configPath := flag.String("config", "/etc/deployd.conf", "Path to the config file")
 
-	flag.Parse()
-
-	if _, err = os.Stat(*configPath); os.IsNotExist(err) {
-		log.Fatal(err)
-	}
-
-	data, err := ioutil.ReadFile(*configPath)
+	config, err := configuration.Configure()
 
 	if err != nil {
 		log.Fatal(err)
-	}
-
-	var config Config
-	err = yaml.Unmarshal(data, &config)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if config.Lock == "" {
-		config.Lock = "/var/run"
 	}
 
 	lockPath := fmt.Sprintf("%v/deployd.pid", config.Lock)
@@ -96,17 +56,6 @@ func main() {
 
 		if err != nil {
 			log.Fatal(err)
-		}
-	}
-
-	if config.Cache == "" {
-		usr, _ := user.Current()
-		config.Cache = usr.HomeDir
-	}
-
-	if len(config.Static.Projects) > 0 {
-		if config.Static.Path == "" {
-			config.Static.Path = "/srv"
 		}
 	}
 
