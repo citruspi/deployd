@@ -14,21 +14,13 @@ import (
 	"strings"
 	"time"
 
+	cachestore "github.com/citruspi/deployd/cache"
 	"github.com/citruspi/deployd/configuration"
-
-	"gopkg.in/yaml.v2"
 )
 
 var (
 	err error
 )
-
-type CacheRecord struct {
-	Domain       string
-	Subdomain    string
-	Checksum     string
-	LastDeployed time.Time
-}
 
 func main() {
 
@@ -59,34 +51,11 @@ func main() {
 		}
 	}
 
-	var cache []CacheRecord
+	var cache cachestore.Cache
 
-	cachePath := fmt.Sprintf("%v/.deployd.cache", config.Cache)
+	cache.Path = config.Cache
 
-	if _, err = os.Stat(config.Cache); os.IsNotExist(err) {
-		err = os.MkdirAll(config.Cache, 0700)
-
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-
-	if _, err = os.Stat(cachePath); os.IsNotExist(err) {
-		cacheFile, err := os.Create(cachePath)
-		cacheFile.Close()
-
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-
-	cacheData, err := ioutil.ReadFile(cachePath)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = yaml.Unmarshal(cacheData, &cache)
+	err = cache.Load()
 
 	if err != nil {
 		log.Fatal(err)
@@ -94,9 +63,9 @@ func main() {
 
 	for _, project := range config.Static.Projects {
 		var processingPath string
-		var record CacheRecord
+		var record cachestore.CacheRecord
 
-		for _, r := range cache {
+		for _, r := range cache.Records {
 			if r.Domain == project.Domain && r.Subdomain == project.Subdomain {
 				record = r
 				break
@@ -164,13 +133,14 @@ func main() {
 		checksum := fmt.Sprintf("%x", rawChecksum)
 
 		if checksum == record.Checksum {
+			fmt.Println("Duplicate")
 			continue
 		}
 
 		record.Checksum = checksum
 		record.LastDeployed = time.Now()
 
-		cache = append(cache, record)
+		cache.Records = append(cache.Records, record)
 
 		unarchivedPath := fmt.Sprintf("%v/%v-%v", processingPath, project.Name, project.Branch)
 
@@ -220,13 +190,7 @@ func main() {
 		}
 	}
 
-	cacheData, err = yaml.Marshal(&cache)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = ioutil.WriteFile(cachePath, cacheData, 0700)
+	err = cache.Save()
 
 	if err != nil {
 		log.Fatal(err)
