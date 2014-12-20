@@ -19,21 +19,21 @@ var (
 	err error
 )
 
-func Static(config configuration.Config, cache cachestore.Cache, name string, domain string, subdomain string, branch string, github bool, bucket string, owner string, repository string) (err error) {
+func Static(config configuration.Config, cache cachestore.Cache, project configuration.StaticProject) (err error) {
 
 	var processingPath string
 	var record cachestore.CacheRecord
 
 	for _, r := range cache.Records {
-		if r.Domain == domain && r.Subdomain == subdomain {
+		if r.Domain == project.Domain && r.Subdomain == project.Subdomain {
 			record = r
 			break
 		}
 	}
 
 	if record.Domain == "" {
-		record.Domain = domain
-		record.Subdomain = subdomain
+		record.Domain = project.Domain
+		record.Subdomain = project.Subdomain
 	}
 
 	processingPath = fmt.Sprintf("%v/.deployd.processing", config.Static.Path)
@@ -46,7 +46,7 @@ func Static(config configuration.Config, cache cachestore.Cache, name string, do
 		}
 	}
 
-	archivePath := fmt.Sprintf("%v/%v-%v.zip", processingPath, name, branch)
+	archivePath := fmt.Sprintf("%v/%v-%v.zip", processingPath, project.Name, project.Branch)
 
 	err = os.RemoveAll(archivePath)
 
@@ -63,10 +63,10 @@ func Static(config configuration.Config, cache cachestore.Cache, name string, do
 
 	var archiveLocation string
 
-	if github {
-		archiveLocation = fmt.Sprintf("https://github.com/%v/%v/archive/%v.zip", owner, repository, branch)
+	if project.GitHub {
+		archiveLocation = fmt.Sprintf("https://github.com/%v/%v/archive/%v.zip", project.Owner, project.Repository, project.Branch)
 	} else {
-		archiveLocation = fmt.Sprintf("https://s3.amazonaws.com/%v/%v-latest.zip", bucket, branch)
+		archiveLocation = fmt.Sprintf("https://s3.amazonaws.com/%v/%v-latest.zip", project.Bucket, project.Branch)
 	}
 
 	response, err := http.Get(archiveLocation)
@@ -101,7 +101,7 @@ func Static(config configuration.Config, cache cachestore.Cache, name string, do
 
 	cache.Records = append(cache.Records, record)
 
-	unarchivedPath := fmt.Sprintf("%v/%v-%v", processingPath, name, branch)
+	unarchivedPath := fmt.Sprintf("%v/%v-%v", processingPath, project.Name, project.Branch)
 
 	err = os.RemoveAll(unarchivedPath)
 
@@ -115,12 +115,12 @@ func Static(config configuration.Config, cache cachestore.Cache, name string, do
 		log.Fatal(err)
 	}
 
-	if github {
-		unarchivedPath = fmt.Sprintf("%v/%v-%v", unarchivedPath, repository, branch)
+	if project.GitHub {
+		unarchivedPath = fmt.Sprintf("%v/%v-%v", unarchivedPath, project.Repository, project.Branch)
 	}
 
-	domainPath := fmt.Sprintf("%v/%v", config.Static.Path, domain)
-	projectPath := fmt.Sprintf("%v/%v/%v", config.Static.Path, domain, subdomain)
+	domainPath := fmt.Sprintf("%v/%v", config.Static.Path, project.Domain)
+	projectPath := fmt.Sprintf("%v/%v/%v", config.Static.Path, project.Domain, project.Subdomain)
 
 	err = os.RemoveAll(projectPath)
 

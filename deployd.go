@@ -56,7 +56,7 @@ func main() {
 	}
 
 	for _, project := range config.Static.Projects {
-		err = deploy.Static(config, cache, project.Name, project.Domain, project.Subdomain, project.Branch, project.GitHub, project.Bucket, project.Owner, project.Repository)
+		err = deploy.Static(config, cache, project)
 
 		if err != nil {
 			log.Fatal(err)
