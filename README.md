@@ -28,3 +28,8 @@ static:
       owner: citruspi
       repository: mihirsingh.com
 ```
+
+### License
+
+deployd is dedicated to the public domain. Check out the `UNLICENSE` file for
+more information.
